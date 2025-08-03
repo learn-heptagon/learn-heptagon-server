@@ -1,0 +1,8 @@
+*.cm*
+*.byte
+tryhept.js
+.merlin
+_build/
+pervasives.*
+mathlib.*
+examples.*
