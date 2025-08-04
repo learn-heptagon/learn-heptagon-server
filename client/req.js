@@ -1,8 +1,10 @@
+var Range = ace.require("ace/range").Range
+
 const url = "http://localhost:8000/"
-const prog = "node s (_:bool) returns (X: int);\nlet\n  X = 1 -> if (pre X) < 3 then (pre X) + 1 else 3 ;\ntel\n\nnode s1 (_:bool) returns (X:  int);\nlet\n  X = 1 -> pre (2 -> 3);\ntel\nnode obs_s(_:bool) returns (OK: bool);\nlet\n  OK = (s(_) = s1(_));\n\n--%MAIN;\n--%PROPERTY OK;\ntel"
 
 async function req() {
-    console.log(prog);
+    let prog = editor.getValue();
+
     let response = await fetch(url + "verify", {
         method: "POST",
         body: JSON.stringify({
@@ -12,8 +14,21 @@ async function req() {
             "Content-type": "application/json; charset=UTF-8"
         }
     });
-    let resuls = await response.json();
-    console.log(jobid);
+    let results = await response.json();
+    console.log(results);
+
+    for(var i in results) {
+        var o = results[i];
+        if(o.objectType == "property" && o.source != "Generated") {
+            console.log(o.line);
+            let range = new Range (o.line, 0, o.line, 10);
+            if(o.answer.value == "valid") {
+                editor.session.addGutterDecoration(o.line-1, "valid-decoration");
+            } else {
+                editor.session.addGutterDecoration(o.line-1, "invalid-decoration");
+            }
+        }
+    }
 
     // var results_res;
     // while(true) {

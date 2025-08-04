@@ -74,8 +74,8 @@ let server =
     (*        | Not_found -> Server.respond_error ~status:`Not_found ~body:"" () *)
     (*        | Sys_error s -> Server.respond_error ~status:`Service_unavailable ~body:s () *)
     (*      ) *)
-    | "/" -> Server.respond_file ~fname:"tests/index.html" ()
-    | s -> Server.respond_file ~fname:("tests"^s) ()
+    | "/" -> Server.respond_file ~fname:"client/index.html" ()
+    | s -> Server.respond_file ~fname:("client"^s) ()
   in
   Server.create ~mode:(`TCP (`Port 8000)) (Server.make ~callback ())
 
