@@ -26,6 +26,8 @@ let read_result inch =
   let res = String.concat "\n" (read_all []) in
   res
 
+let client_folder = "../learn-heptagon/"
+
 let server =
   let callback _conn req body =
     let uri = req |> Request.uri in
@@ -43,8 +45,8 @@ let server =
            with Invalid_argument _ ->
              Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
          )
-    | "/" -> Server.respond_file ~fname:"../learn-heptagon/index.html" ()
-    | s -> Server.respond_file ~fname:("../learn-heptagon/"^s) ()
+    | "/" -> Server.respond_file ~fname:(client_folder^"index.html") ()
+    | s -> Server.respond_file ~fname:(client_folder^s) ()
   in
   Server.create ~mode:(`TCP (`Port 8000)) (Server.make ~callback ())
 
