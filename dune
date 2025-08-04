@@ -1,4 +1,4 @@
 (executable
- (public_name learn_ocaml_server)
- (name learn_ocaml_server)
+ (public_name learn_heptagon_server)
+ (name learn_heptagon_server)
  (libraries cohttp-lwt-unix yojson))
