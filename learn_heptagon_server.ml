@@ -28,6 +28,8 @@ let read_result inch =
 
 let client_folder = "../learn-heptagon/"
 
+let json_headers = Http.Header.of_list [("Content-Type", "application/json")]
+
 let server =
   let callback _conn req body =
     let uri = req |> Request.uri in
@@ -41,7 +43,10 @@ let server =
              let (inch, outch) = Unix.open_process "kind2 -json" in
              output_string outch p;
              close_out outch;
-             Server.respond_string ~status:`OK ~body:(read_result inch) ()
+             Server.respond_string
+               ~status:`OK
+               ~headers:json_headers
+               ~body:(read_result inch) ()
            with Invalid_argument _ ->
              Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
          )
