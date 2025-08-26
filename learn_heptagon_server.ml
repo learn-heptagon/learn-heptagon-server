@@ -77,6 +77,14 @@ let random_token () =
   let n = String.length chars in
   String.init 16 (fun _ -> chars.[Random.int n])
 
+let rec create_unique_token () =
+  let token = random_token () in
+  let user_dir = Filename.concat users_folder token in
+  try
+    Unix.mkdir user_dir 0o755;
+    token
+  with Unix.Unix_error (Unix.EEXIST, _, _) -> create_unique_token ()
+
 let server =
   let callback _conn req body =
     let uri = req |> Request.uri in
@@ -132,11 +140,11 @@ let server =
           )
 
       | "/create-user" ->
-        let token = random_token () in
-        let user_dir = Filename.concat users_folder token in
-        Unix.mkdir user_dir 0o755;
-        let resp = `Assoc [("token", `String token)] |> Yojson.Safe.to_string in
-        Server.respond_string ~status:`OK ~body:resp ()
+        (try
+          let token = create_unique_token () in
+          let resp = `Assoc [("token", `String token)] |> Yojson.Safe.to_string in
+          Server.respond_string ~status:`OK ~body:resp ()
+        with e -> Server.respond_error ~status:`Internal_server_error ~body:(Printexc.to_string e) ())
 
       | "/get-user" ->
         Cohttp_lwt.Body.to_string body >>=
