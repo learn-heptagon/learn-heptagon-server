@@ -126,8 +126,9 @@ let server =
                 ~status:`OK
                 ~headers:json_headers
                 ~body:(read_all inch) ()
-            with Invalid_argument _ ->
-              Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
+            with
+            | Invalid_argument _ -> Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
+            | Sys_error msg -> Server.respond_error ~status:`Not_found ~body:msg ()
           )
 
       | "/create-user" ->

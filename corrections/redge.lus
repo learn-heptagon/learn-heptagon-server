@@ -1,0 +1,4 @@
+node redge_corr(b: bool) returns (edge: bool)
+let
+    edge = false -> b and not pre b;
+tel
