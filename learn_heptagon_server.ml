@@ -143,7 +143,7 @@ let server =
         (try
           let token = create_unique_token () in
           let resp = `Assoc [("token", `String token)] |> Yojson.Safe.to_string in
-          Server.respond_string ~status:`OK ~body:resp ()
+          Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
         with e -> Server.respond_error ~status:`Internal_server_error ~body:(Printexc.to_string e) ())
 
       | "/get-user" ->
@@ -158,7 +158,7 @@ let server =
             let user_dir = Filename.concat users_folder token in
             if Sys.file_exists user_dir && Sys.is_directory user_dir then
               let resp = `Assoc [("token", `String token)] |> Yojson.Safe.to_string in
-              Server.respond_string ~status:`OK ~body:resp ()
+              Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
             else
               Server.respond_error ~status:`Not_found ~body:"User not found" ()
           )
@@ -189,7 +189,7 @@ let server =
               Yojson.Safe.to_channel oc notebook_json;
               close_out oc;
               let resp = `Assoc [("status", `String "ok")] |> Yojson.Safe.to_string in
-              Server.respond_string ~status:`OK ~body:resp ()
+              Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
             else
               Server.respond_error ~status:`Not_found ~body:"User not found" ()
           )
@@ -212,7 +212,7 @@ let server =
                       with _ -> `Null
                     in
                     close_in ic;
-                    Server.respond_string ~status:`OK ~body:(Yojson.Safe.to_string notebook_json) ()
+                    Server.respond_string ~status:`OK ~headers:json_headers ~body:(Yojson.Safe.to_string notebook_json) ()
                   else
                     Server.respond_error ~status:`Not_found ~body:"Notebook not found" ()
                 else
