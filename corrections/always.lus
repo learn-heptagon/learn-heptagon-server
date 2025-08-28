@@ -1,4 +1,0 @@
-node always_corr(b: bool) returns (out: bool)
-let
-    out = b and (true -> pre out);
-tel

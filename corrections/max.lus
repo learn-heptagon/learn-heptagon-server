@@ -1,4 +1,0 @@
-node max_corr(x, y: real) returns (z: real)
-let
-    z = if x < y then y else x;
-tel

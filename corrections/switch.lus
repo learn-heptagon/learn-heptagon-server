@@ -1,6 +1,0 @@
-node swtch_corr(ton, toff: bool) returns (s: bool)
-let
-    s = if ton then true else 
-        if toff then false
-        else false -> pre s;
-tel
