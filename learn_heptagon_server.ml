@@ -160,7 +160,7 @@ let server =
               let resp = `Assoc [("token", `String token)] |> Yojson.Safe.to_string in
               Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
             else
-              Server.respond_error ~status:`Not_found ~body:"User not found" ()
+              Server.respond_error ~status:`Not_found ~body:"User not found." ()
           )
 
       | "/save-notebook" ->
@@ -191,7 +191,7 @@ let server =
               let resp = `Assoc [("status", `String "ok")] |> Yojson.Safe.to_string in
               Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
             else
-              Server.respond_error ~status:`Not_found ~body:"User not found" ()
+              Server.respond_error ~status:`Not_found ~body:"User not found." ()
           )
 
       | "/get-notebook" ->
@@ -214,10 +214,10 @@ let server =
                     close_in ic;
                     Server.respond_string ~status:`OK ~headers:json_headers ~body:(Yojson.Safe.to_string notebook_json) ()
                   else
-                    Server.respond_error ~status:`Not_found ~body:"Notebook not found" ()
+                    Server.respond_error ~status:`Not_found ~body:"Notebook not found." ()
                 else
-                  Server.respond_error ~status:`Not_found ~body:"User not found" ()
-              | _ -> Server.respond_error ~status:`Bad_request ~body:"Missing fields" ()
+                  Server.respond_error ~status:`Not_found ~body:"User not found." ()
+              | _ -> Server.respond_error ~status:`Bad_request ~body:"Missing fields." ()
           )
 
       | "/" -> Server.respond_file ~fname:(client_folder^"index.html") ()
