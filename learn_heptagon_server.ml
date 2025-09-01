@@ -77,13 +77,38 @@ let random_token () =
   let n = String.length chars in
   String.init 16 (fun _ -> chars.[Random.int n])
 
-let rec create_unique_token () =
+let user_file token =
+  Printf.sprintf "%s/%s/user.json" users_folder token
+
+exception User_already_exists
+
+let rec create_unique_token username =
+  (* Check if username does not already exist *)
+  let files = Sys.readdir users_folder in
+  if Array.exists (fun token ->
+         let f = user_file token in
+         if Sys.file_exists f then
+           let ic = open_in f in
+           let json = Yojson.Safe.from_string (read_all ic) in
+           match json with
+           | `Assoc ass -> (match List.assoc_opt "username" ass with
+                             | Some (`String s) -> s = username
+                             | _ -> false)
+           | _ -> false
+         else false
+       ) files
+  then raise User_already_exists;
+  (* Create token and folder *)
   let token = random_token () in
   let user_dir = Filename.concat users_folder token in
   try
     Unix.mkdir user_dir 0o755;
-    token
-  with Unix.Unix_error (Unix.EEXIST, _, _) -> create_unique_token ()
+    let resp = `Assoc [("token", `String token); ("username", `String username)] |> Yojson.Safe.to_string in
+    let oc = open_out (user_file token) in
+    output_string oc resp;
+    close_out oc;
+    resp
+  with Unix.Unix_error (Unix.EEXIST, _, _) -> create_unique_token username
 
 let server =
   let callback _conn req body =
@@ -140,11 +165,20 @@ let server =
           )
 
       | "/create-user" ->
-        (try
-          let token = create_unique_token () in
-          let resp = `Assoc [("token", `String token)] |> Yojson.Safe.to_string in
-          Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
-        with e -> Server.respond_error ~status:`Internal_server_error ~body:(Printexc.to_string e) ())
+        Cohttp_lwt.Body.to_string body >>=
+          (fun body ->
+            let json = Yojson.Safe.from_string body in
+            try
+              let username =
+                match List.assoc_opt "username" (get_req_assoc json) with
+                | Some (`String t) -> t
+                | _ -> invalid_arg "create-user: missing username"
+              in
+              let resp = create_unique_token username in
+              Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
+            with
+            | User_already_exists -> Server.respond_error ~status:`Conflict ~body:"" ()
+            | Invalid_argument msg -> Server.respond_error ~status:`Unsupported_media_type ~body:msg ())
 
       | "/get-user" ->
         Cohttp_lwt.Body.to_string body >>=
@@ -157,7 +191,7 @@ let server =
             in
             let user_dir = Filename.concat users_folder token in
             if Sys.file_exists user_dir && Sys.is_directory user_dir then
-              let resp = `Assoc [("token", `String token)] |> Yojson.Safe.to_string in
+              let resp = read_all (open_in (user_file token)) in
               Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
             else
               Server.respond_error ~status:`Not_found ~body:"User not found." ()
