@@ -110,11 +110,17 @@ let rec create_unique_token username =
     resp
   with Unix.Unix_error (Unix.EEXIST, _, _) -> create_unique_token username
 
+let rec drop_leading_slashes (s: char Seq.t) =
+  match s () with
+  | Cons ('/', s) -> drop_leading_slashes s
+  | _ -> s
+
 let server =
   let callback _conn req body =
     let uri = req |> Request.uri in
-    match Uri.path uri with
-      | "/verify" ->
+    let path = uri |> Uri.path |> String.to_seq |> drop_leading_slashes |> String.of_seq in
+    match path with
+      | "verify" ->
         Cohttp_lwt.Body.to_string body >>=
           (fun body ->
             let body = Yojson.Safe.from_string body in
@@ -131,7 +137,7 @@ let server =
               Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
           )
 
-      | "/autocorrect" ->
+      | "autocorrect" ->
         Cohttp_lwt.Body.to_string body >>=
           (fun body ->
             let body = Yojson.Safe.from_string body in
@@ -164,7 +170,7 @@ let server =
             | Sys_error msg -> Server.respond_error ~status:`Not_found ~body:msg ()
           )
 
-      | "/create-user" ->
+      | "create-user" ->
         Cohttp_lwt.Body.to_string body >>=
           (fun body ->
             let json = Yojson.Safe.from_string body in
@@ -180,7 +186,7 @@ let server =
             | User_already_exists -> Server.respond_error ~status:`Conflict ~body:"" ()
             | Invalid_argument msg -> Server.respond_error ~status:`Unsupported_media_type ~body:msg ())
 
-      | "/get-user" ->
+      | "get-user" ->
         Cohttp_lwt.Body.to_string body >>=
           (fun body ->
             let json = Yojson.Safe.from_string body in
@@ -197,7 +203,7 @@ let server =
               Server.respond_error ~status:`Not_found ~body:"User not found." ()
           )
 
-      | "/save-notebook" ->
+      | "save-notebook" ->
         Cohttp_lwt.Body.to_string body >>=
           (fun body ->
             let json = Yojson.Safe.from_string body in
@@ -228,7 +234,7 @@ let server =
               Server.respond_error ~status:`Not_found ~body:"User not found." ()
           )
 
-      | "/get-notebook" ->
+      | "get-notebook" ->
         Cohttp_lwt.Body.to_string body >>=
           (fun body ->
             let json = Yojson.Safe.from_string body in
@@ -248,13 +254,13 @@ let server =
                     close_in ic;
                     Server.respond_string ~status:`OK ~headers:json_headers ~body:(Yojson.Safe.to_string notebook_json) ()
                   else
-                    Server.respond_error ~status:`Not_found ~body:"Notebook not found." ()
+                    Server.respond_error ~status:`No_content ~body:"Notebook not found." ()
                 else
                   Server.respond_error ~status:`Not_found ~body:"User not found." ()
               | _ -> Server.respond_error ~status:`Bad_request ~body:"Missing fields." ()
           )
 
-      | "/" -> Server.respond_file ~fname:(client_folder^"index.html") ()
+      | "" -> Server.respond_file ~fname:(client_folder^"index.html") ()
 
       | s -> Server.respond_file ~fname:(client_folder^s) ()
   in
