@@ -126,7 +126,7 @@ let server =
             let body = Yojson.Safe.from_string body in
             try
               let p = get_prog body in
-              let (inch, outch) = Unix.open_process "kind2 -json" in
+              let (inch, outch) = Unix.open_process "kind2 --modular true -json" in
               output_string outch p;
               close_out outch;
               Server.respond_string
