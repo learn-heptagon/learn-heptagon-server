@@ -117,152 +117,154 @@ let rec drop_leading_slashes (s: char Seq.t) =
 
 let server =
   let callback _conn req body =
-    let uri = req |> Request.uri in
-    let path = uri |> Uri.path |> String.to_seq |> drop_leading_slashes |> String.of_seq in
-    match path with
+    try
+      let uri = req |> Request.uri in
+      let path = uri |> Uri.path |> String.to_seq |> drop_leading_slashes |> String.of_seq in
+      match path with
       | "verify" ->
         Cohttp_lwt.Body.to_string body >>=
-          (fun body ->
-            let body = Yojson.Safe.from_string body in
-            try
-              let p = get_prog body in
-              let (inch, outch) = Unix.open_process "kind2 --modular true -json" in
-              output_string outch p;
-              close_out outch;
-              Server.respond_string
-                ~status:`OK
-                ~headers:json_headers
-                ~body:(read_all inch) ()
-            with Invalid_argument _ ->
-              Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
-          )
+        (fun body ->
+           let body = Yojson.Safe.from_string body in
+           try
+             let p = get_prog body in
+             let (inch, outch) = Unix.open_process "kind2 --modular true -json" in
+             output_string outch p;
+             close_out outch;
+             Server.respond_string
+               ~status:`OK
+               ~headers:json_headers
+               ~body:(read_all inch) ()
+           with Invalid_argument _ ->
+             Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
+        )
 
       | "autocorrect" ->
         Cohttp_lwt.Body.to_string body >>=
-          (fun body ->
-            let body = Yojson.Safe.from_string body in
-            try
-              let filename = get_filename body
-              and prog = get_prog body
-              and ndname = get_nodename body
-              and ins = get_ins body and outs = get_outs body in
-              (* Get correction from file *)
-              let ic = open_in (Printf.sprintf "corrections/%s.lus" filename) in
-              let cprog = read_all ic in
-              close_in ic;
-              (* Build the checked program *)
-              print_equiv_node Format.str_formatter ndname ins outs;
-              let p = Printf.sprintf "%s\n%s\n%s"
-                        prog cprog
-                        (Format.flush_str_formatter ())
-              in
-              (* Call Kind2 *)
-              let (inch, outch) = Unix.open_process "kind2 -json" in
-              output_string outch p;
-              close_out outch;
-              (* Send response *)
-              Server.respond_string
-                ~status:`OK
-                ~headers:json_headers
-                ~body:(read_all inch) ()
-            with
-            | Invalid_argument _ -> Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
-            | Sys_error msg -> Server.respond_error ~status:`Not_found ~body:msg ()
-          )
+        (fun body ->
+           let body = Yojson.Safe.from_string body in
+           try
+             let filename = get_filename body
+             and prog = get_prog body
+             and ndname = get_nodename body
+             and ins = get_ins body and outs = get_outs body in
+             (* Get correction from file *)
+             let ic = open_in (Printf.sprintf "corrections/%s.lus" filename) in
+             let cprog = read_all ic in
+             close_in ic;
+             (* Build the checked program *)
+             print_equiv_node Format.str_formatter ndname ins outs;
+             let p = Printf.sprintf "%s\n%s\n%s"
+                 prog cprog
+                 (Format.flush_str_formatter ())
+             in
+             (* Call Kind2 *)
+             let (inch, outch) = Unix.open_process "kind2 -json" in
+             output_string outch p;
+             close_out outch;
+             (* Send response *)
+             Server.respond_string
+               ~status:`OK
+               ~headers:json_headers
+               ~body:(read_all inch) ()
+           with
+           | Invalid_argument _ -> Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
+           | Sys_error msg -> Server.respond_error ~status:`Not_found ~body:msg ()
+        )
 
       | "create-user" ->
         Cohttp_lwt.Body.to_string body >>=
-          (fun body ->
-            let json = Yojson.Safe.from_string body in
-            try
-              let username =
-                match List.assoc_opt "username" (get_req_assoc json) with
-                | Some (`String t) -> t
-                | _ -> invalid_arg "create-user: missing username"
-              in
-              let resp = create_unique_token username in
-              Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
-            with
-            | User_already_exists -> Server.respond_error ~status:`Conflict ~body:"" ()
-            | Invalid_argument msg -> Server.respond_error ~status:`Unsupported_media_type ~body:msg ())
+        (fun body ->
+           let json = Yojson.Safe.from_string body in
+           try
+             let username =
+               match List.assoc_opt "username" (get_req_assoc json) with
+               | Some (`String t) -> t
+               | _ -> invalid_arg "create-user: missing username"
+             in
+             let resp = create_unique_token username in
+             Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
+           with
+           | User_already_exists -> Server.respond_error ~status:`Conflict ~body:"" ()
+           | Invalid_argument msg -> Server.respond_error ~status:`Unsupported_media_type ~body:msg ())
 
       | "get-user" ->
         Cohttp_lwt.Body.to_string body >>=
-          (fun body ->
-            let json = Yojson.Safe.from_string body in
-            let token =
-              match List.assoc_opt "token" (get_req_assoc json) with
-                | Some (`String t) -> t
-                | _ -> invalid_arg "get-user: missing token"
-            in
-            let user_dir = Filename.concat users_folder token in
-            if Sys.file_exists user_dir && Sys.is_directory user_dir then
-              let resp = read_all (open_in (user_file token)) in
-              Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
-            else
-              Server.respond_error ~status:`Not_found ~body:"User not found." ()
-          )
+        (fun body ->
+           let json = Yojson.Safe.from_string body in
+           let token =
+             match List.assoc_opt "token" (get_req_assoc json) with
+             | Some (`String t) -> t
+             | _ -> invalid_arg "get-user: missing token"
+           in
+           let user_dir = Filename.concat users_folder token in
+           if Sys.file_exists user_dir && Sys.is_directory user_dir then
+             let resp = read_all (open_in (user_file token)) in
+             Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
+           else
+             Server.respond_error ~status:`Not_found ~body:"User not found." ()
+        )
 
       | "save-notebook" ->
         Cohttp_lwt.Body.to_string body >>=
-          (fun body ->
-            let json = Yojson.Safe.from_string body in
-            let token =
-              match List.assoc_opt "token" (get_req_assoc json) with
-                | Some (`String t) -> t
-                | _ -> invalid_arg "save-notebook: missing token"
-            in
-            let user_dir = Filename.concat users_folder token in
-            if Sys.file_exists user_dir && Sys.is_directory user_dir then
-              let notebook_json =
-                match List.assoc_opt "notebook" (get_req_assoc json) with
-                  | Some n -> n
-                  | _ -> invalid_arg "save-notebook: missing notebook data"
-              in
-              let notebook_filename =
-                match List.assoc_opt "filename" (get_req_assoc notebook_json) with
-                  | Some (`String t) -> t
-                  | _ -> "unfilenamed"
-              in
-              let filename = Filename.concat user_dir (notebook_filename ^ ".json") in
-              let oc = open_out filename in
-              Yojson.Safe.to_channel oc notebook_json;
-              close_out oc;
-              let resp = `Assoc [("status", `String "ok")] |> Yojson.Safe.to_string in
-              Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
-            else
-              Server.respond_error ~status:`Not_found ~body:"User not found." ()
-          )
+        (fun body ->
+           let json = Yojson.Safe.from_string body in
+           let token =
+             match List.assoc_opt "token" (get_req_assoc json) with
+             | Some (`String t) -> t
+             | _ -> invalid_arg "save-notebook: missing token"
+           in
+           let user_dir = Filename.concat users_folder token in
+           if Sys.file_exists user_dir && Sys.is_directory user_dir then
+             let notebook_json =
+               match List.assoc_opt "notebook" (get_req_assoc json) with
+               | Some n -> n
+               | _ -> invalid_arg "save-notebook: missing notebook data"
+             in
+             let notebook_filename =
+               match List.assoc_opt "filename" (get_req_assoc notebook_json) with
+               | Some (`String t) -> t
+               | _ -> "unfilenamed"
+             in
+             let filename = Filename.concat user_dir (notebook_filename ^ ".json") in
+             let oc = open_out filename in
+             Yojson.Safe.to_channel oc notebook_json;
+             close_out oc;
+             let resp = `Assoc [("status", `String "ok")] |> Yojson.Safe.to_string in
+             Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
+           else
+             Server.respond_error ~status:`Not_found ~body:"User not found." ()
+        )
 
       | "get-notebook" ->
         Cohttp_lwt.Body.to_string body >>=
-          (fun body ->
-            let json = Yojson.Safe.from_string body in
-            match List.assoc_opt "token" (get_req_assoc json),
-                  List.assoc_opt "filename" (get_req_assoc json)
-            with
-              | Some (`String token), Some (`String filename) ->
-                let user_dir = Filename.concat users_folder token in
-                if Sys.file_exists user_dir && Sys.is_directory user_dir then
-                  let fname = Filename.concat user_dir (filename ^ ".json") in
-                  if Sys.file_exists fname then
-                    let ic = open_in fname in
-                    let notebook_json =
-                      try Yojson.Safe.from_channel ic
-                      with _ -> `Null
-                    in
-                    close_in ic;
-                    Server.respond_string ~status:`OK ~headers:json_headers ~body:(Yojson.Safe.to_string notebook_json) ()
-                  else
-                    Server.respond_error ~status:`No_content ~body:"Notebook not found." ()
-                else
-                  Server.respond_error ~status:`Not_found ~body:"User not found." ()
-              | _ -> Server.respond_error ~status:`Bad_request ~body:"Missing fields." ()
-          )
+        (fun body ->
+           let json = Yojson.Safe.from_string body in
+           match List.assoc_opt "token" (get_req_assoc json),
+                 List.assoc_opt "filename" (get_req_assoc json)
+           with
+           | Some (`String token), Some (`String filename) ->
+             let user_dir = Filename.concat users_folder token in
+             if Sys.file_exists user_dir && Sys.is_directory user_dir then
+               let fname = Filename.concat user_dir (filename ^ ".json") in
+               if Sys.file_exists fname then
+                 let ic = open_in fname in
+                 let notebook_json =
+                   try Yojson.Safe.from_channel ic
+                   with _ -> `Null
+                 in
+                 close_in ic;
+                 Server.respond_string ~status:`OK ~headers:json_headers ~body:(Yojson.Safe.to_string notebook_json) ()
+               else
+                 Server.respond_error ~status:`No_content ~body:"Notebook not found." ()
+             else
+               Server.respond_error ~status:`Not_found ~body:"User not found." ()
+           | _ -> Server.respond_error ~status:`Bad_request ~body:"Missing fields." ()
+        )
 
       | "" -> Server.respond_file ~fname:(client_folder^"index.html") ()
 
       | s -> Server.respond_file ~fname:(client_folder^s) ()
+    with e -> Server.respond_error ~status:`Internal_server_error ~body:(Printexc.to_string e) ()
   in
   Server.create ~mode:(`TCP (`Port 8000)) (Server.make ~callback ())
 
