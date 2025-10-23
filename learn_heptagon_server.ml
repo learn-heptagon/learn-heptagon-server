@@ -90,6 +90,7 @@ let rec create_unique_token username =
          if Sys.file_exists f then
            let ic = open_in f in
            let json = Yojson.Safe.from_string (read_all ic) in
+           close_in ic;
            match json with
            | `Assoc ass -> (match List.assoc_opt "username" ass with
                              | Some (`String s) -> s = username
@@ -130,10 +131,12 @@ let server =
              let (inch, outch) = Unix.open_process "kind2 --modular true -json" in
              output_string outch p;
              close_out outch;
+             let response = read_all inch in
+             close_in inch;
              Server.respond_string
                ~status:`OK
                ~headers:json_headers
-               ~body:(read_all inch) ()
+               ~body:response ()
            with Invalid_argument _ ->
              Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
         )
@@ -161,11 +164,13 @@ let server =
              let (inch, outch) = Unix.open_process "kind2 -json" in
              output_string outch p;
              close_out outch;
+             let response = read_all inch in
+             close_in inch;
              (* Send response *)
              Server.respond_string
                ~status:`OK
                ~headers:json_headers
-               ~body:(read_all inch) ()
+               ~body:response ()
            with
            | Invalid_argument _ -> Server.respond_error ~status:`Unsupported_media_type ~body:"" ()
            | Sys_error msg -> Server.respond_error ~status:`Not_found ~body:msg ()
@@ -198,7 +203,9 @@ let server =
            in
            let user_dir = Filename.concat users_folder token in
            if Sys.file_exists user_dir && Sys.is_directory user_dir then
-             let resp = read_all (open_in (user_file token)) in
+             let ic = open_in (user_file token) in
+             let resp = read_all ic in
+             close_in ic;
              Server.respond_string ~status:`OK ~headers:json_headers ~body:resp ()
            else
              Server.respond_error ~status:`Not_found ~body:"User not found." ()
