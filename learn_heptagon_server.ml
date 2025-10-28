@@ -132,7 +132,7 @@ let server =
              output_string outch p;
              close_out outch;
              let response = read_all inch in
-             close_in inch;
+             ignore (Unix.close_process (inch, outch));
              Server.respond_string
                ~status:`OK
                ~headers:json_headers
@@ -165,7 +165,7 @@ let server =
              output_string outch p;
              close_out outch;
              let response = read_all inch in
-             close_in inch;
+             ignore (Unix.close_process (inch, outch));
              (* Send response *)
              Server.respond_string
                ~status:`OK
